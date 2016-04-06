@@ -22,10 +22,12 @@ const (
 	SEQNOREQ = 10
 )
 
-type Packet struct {
-	Type   int
-	Length int
-	Data   []byte
+type TLV interface {
+	Type() int
+	Length() int
+	Data() []byte
+	ParseFrom([]byte)
+	Serialize() []byte
 }
 
 type AckReq struct {
@@ -81,7 +83,8 @@ type SeqnoRequest struct {
 	Prefix    []byte
 }
 
-func ParsePacket(bytes []byte) (*Packet, error) {
+func ParseBabelPacket(bytes []byte) ([]TLV, error) {
+	var tlvs []TLV
 
 	if bytes[0] != 42 {
 		return nil, errors.New(fmt.Sprintf("Malformed packet, magic number incorrect (%d)", bytes[0]))
@@ -91,32 +94,123 @@ func ParsePacket(bytes []byte) (*Packet, error) {
 		return nil, errors.New(fmt.Sprintf("Packet version unknown (got %d, expected 2)", bytes[1]))
 	}
 
-	packet := Packet{
-		Type:   int(bytes[4]),
-		Length: int(bytes[5]),
-		Data:   bytes[6:],
+	len := int(bytes[2]<<8 | bytes[3])
+	endIdx := 4 + len
+	currentTLVIdx := 5
+
+	for currentTLVIdx <= endIdx {
+		tlvLen := int(bytes[currentTLVIdx+1]<<8 | bytes[currentTLVIdx+2])
+		var tlv TLV
+		switch bytes[currentTLVIdx] {
+		case ACKREQ:
+			ackReq := new(AckReq)
+			ackReq.ParseFrom(bytes[currentTLVIdx : tlvLen+3])
+			tlv = ackReq
+
+		case ACK:
+			ack := new(Ack)
+			ack.ParseFrom(bytes[currentTLVIdx : tlvLen+3])
+			tlv = ack
+
+		default:
+		}
+		tlvs = append(tlvs, tlv)
+		currentTLVIdx = currentTLVIdx + 2 + tlvLen
 	}
 
-	return &packet, nil
+	return tlvs, nil
 }
 
-func ParseAckReq(bytes []byte) (*AckReq, error) {
-	var ackReq *AckReq
+func SerializeBabelPacket(tlvlist []TLV) ([]byte, error) {
+	var bytes []byte
 
-	ackReq = &AckReq{
-		Nonce:    int16(bytes[2]<<8 | bytes[3]),
-		Interval: int16(bytes[4]<<8 | bytes[5]),
+	totalLen := 0
+
+	if tlvlist != nil {
+		for _, tlv := range tlvlist {
+			totalLen = totalLen + tlv.Length() + 2
+		}
 	}
 
-	return ackReq, nil
+	bytes = make([]byte, 4+totalLen)
+
+	bytes[0] = byte(MAGIC)
+	bytes[1] = byte(VERSION)
+	bytes[2] = byte(totalLen >> 8)
+	bytes[3] = byte(totalLen & 0x00ff)
+
+	currentIdx := 4
+
+	for _, tlv := range tlvlist {
+		bytes[currentIdx] = byte(tlv.Type())
+		bytes[currentIdx+1] = byte(tlv.Length())
+		copy(bytes[currentIdx+1:tlv.Length()], tlv.Data())
+	}
+
+	return bytes, nil
 }
 
-func ParseAck(bytes []byte) (*Ack, error) {
-	var ack *Ack
+//
+// ACKREQ message codec
+//
 
-	ack = &Ack{
-		Nonce: int16(bytes[2]<<8 | bytes[3]),
-	}
+func (ackReq *AckReq) ParseFrom(bytes []byte) {
+	ackReq.Nonce = int16(bytes[4])<<8 | int16(bytes[5])
+	ackReq.Interval = int16(bytes[6])<<8 | int16(bytes[7])
+}
 
-	return ack, nil
+func (ackReq *AckReq) Serialize() []byte {
+	var bytes []byte = make([]byte, 8)
+
+	bytes[0] = byte(ACKREQ)
+	bytes[1] = byte(6)
+	bytes[2] = 0
+	bytes[3] = 0
+	bytes[4] = byte(ackReq.Nonce >> 8)
+	bytes[5] = byte(ackReq.Nonce & 0x00ff)
+	bytes[6] = byte(ackReq.Interval >> 8)
+	bytes[7] = byte(ackReq.Interval & 0x00ff)
+
+	return bytes
+}
+
+func (ackReq *AckReq) Type() int {
+	return ACKREQ
+}
+
+func (ackReq *AckReq) Length() int {
+	return 6
+}
+
+func (ackReq *AckReq) Data() []byte {
+	return ackReq.Serialize()[2:]
+}
+
+//
+// ACK message codec
+//
+
+func (ack *Ack) ParseFrom(bytes []byte) {
+	ack.Nonce = int16(bytes[2]<<8 | bytes[3])
+}
+
+func (ack *Ack) Serialize() []byte {
+	var bytes []byte = make([]byte, 4)
+	bytes[0] = byte(ACK)
+	bytes[1] = 2
+	bytes[2] = byte(ack.Nonce >> 8)
+	bytes[3] = byte(ack.Nonce & 0x00ff)
+	return bytes
+}
+
+func (ack *Ack) Type() int {
+	return ACK
+}
+
+func (ack *Ack) Length() int {
+	return 4
+}
+
+func (ack *Ack) Data() []byte {
+	return ack.Serialize()[2:]
 }
