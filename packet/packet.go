@@ -22,6 +22,10 @@ const (
 	SEQNOREQ = 10
 )
 
+//
+// Represents the function contracts for TLV packets
+//
+
 type TLV interface {
 	Type() int
 	Length() int
@@ -30,58 +34,9 @@ type TLV interface {
 	Serialize() []byte
 }
 
-type AckReq struct {
-	Nonce    int16
-	Interval int16
-}
-
-type Ack struct {
-	Nonce int16
-}
-
-type Hello struct {
-	Seqno    int16
-	Interval int16
-}
-
-type IHeardU struct {
-	AE      byte
-	RxCost  int16
-	Address []byte
-}
-
-type RouterId []byte
-
-type NextHop struct {
-	AE      byte
-	Address []byte
-}
-
-type Update struct {
-	AE        byte
-	Flags     byte
-	PrefixLen byte
-	Omitted   byte
-	Interval  int16
-	Seqno     int16
-	Metric    int16
-	Prefix    []byte
-}
-
-type RouteRequest struct {
-	AE        byte
-	PrefixLen byte
-	Prefix    []byte
-}
-
-type SeqnoRequest struct {
-	AE        byte
-	PrefixLen byte
-	Seqno     int16
-	HopCount  byte
-	RouterId  RouterId
-	Prefix    []byte
-}
+//
+// Parse and generate an array of TLV's from a Babel packet
+//
 
 func ParseBabelPacket(bytes []byte) ([]TLV, error) {
 	var tlvs []TLV
@@ -94,12 +49,12 @@ func ParseBabelPacket(bytes []byte) ([]TLV, error) {
 		return nil, errors.New(fmt.Sprintf("Packet version unknown (got %d, expected 2)", bytes[1]))
 	}
 
-	len := int(bytes[2]<<8 | bytes[3])
+	len := int(bytes[2])<<8 | int(bytes[3])
 	endIdx := 4 + len
 	currentTLVIdx := 5
 
 	for currentTLVIdx <= endIdx {
-		tlvLen := int(bytes[currentTLVIdx+1]<<8 | bytes[currentTLVIdx+2])
+		tlvLen := int(bytes[currentTLVIdx+1])<<8 | int(bytes[currentTLVIdx+2])
 		var tlv TLV
 		switch bytes[currentTLVIdx] {
 		case ACKREQ:
@@ -120,6 +75,10 @@ func ParseBabelPacket(bytes []byte) ([]TLV, error) {
 
 	return tlvs, nil
 }
+
+//
+// Generate a serialized Babel packet from an array of tlvs
+//
 
 func SerializeBabelPacket(tlvlist []TLV) ([]byte, error) {
 	var bytes []byte
@@ -154,13 +113,18 @@ func SerializeBabelPacket(tlvlist []TLV) ([]byte, error) {
 // ACKREQ message codec
 //
 
+type AckReq struct {
+	Nonce    int16
+	Interval int16
+}
+
 func (ackReq *AckReq) ParseFrom(bytes []byte) {
 	ackReq.Nonce = int16(bytes[4])<<8 | int16(bytes[5])
 	ackReq.Interval = int16(bytes[6])<<8 | int16(bytes[7])
 }
 
 func (ackReq *AckReq) Serialize() []byte {
-	var bytes []byte = make([]byte, 8)
+	var bytes = make([]byte, 8)
 
 	bytes[0] = byte(ACKREQ)
 	bytes[1] = byte(6)
@@ -190,12 +154,16 @@ func (ackReq *AckReq) Data() []byte {
 // ACK message codec
 //
 
+type Ack struct {
+	Nonce int16
+}
+
 func (ack *Ack) ParseFrom(bytes []byte) {
-	ack.Nonce = int16(bytes[2]<<8 | bytes[3])
+	ack.Nonce = int16(bytes[2])<<8 | int16(bytes[3])
 }
 
 func (ack *Ack) Serialize() []byte {
-	var bytes []byte = make([]byte, 4)
+	var bytes = make([]byte, 4)
 	bytes[0] = byte(ACK)
 	bytes[1] = 2
 	bytes[2] = byte(ack.Nonce >> 8)
@@ -214,3 +182,119 @@ func (ack *Ack) Length() int {
 func (ack *Ack) Data() []byte {
 	return ack.Serialize()[2:]
 }
+
+//
+// HELLO message codec
+//
+
+type Hello struct {
+	Seqno    int16
+	Interval int16
+}
+
+func (hello *Hello) ParseFrom(bytes []byte) {}
+func (hello *Hello) Serialize() []byte      { return nil }
+func (hello *Hello) Type() int              { return 0 }
+func (hello *Hello) Length() int            { return 0 }
+func (hello *Hello) Data() []byte           { return nil }
+
+//
+// IHeardU message codec
+//
+
+type IHeardU struct {
+	AE      byte
+	RxCost  int16
+	Address []byte
+}
+
+func (ihu *IHeardU) ParseFrom(bytes []byte) {}
+func (ihu *IHeardU) Serialize() []byte      { return nil }
+func (ihu *IHeardU) Type() int              { return 0 }
+func (ihu *IHeardU) Length() int            { return 0 }
+func (ihu *IHeardU) Data() []byte           { return nil }
+
+//
+// Router-Id message codec
+//
+
+type RouterId struct {
+	RouterId int64
+}
+
+func (routerId *RouterId) ParseFrom(bytes []byte) {}
+func (routerId *RouterId) Serialize() []byte      { return nil }
+func (routerId *RouterId) Type() int              { return 0 }
+func (routerId *RouterId) Length() int            { return 0 }
+func (routerId *RouterId) Data() []byte           { return nil }
+
+//
+// NextHop message codec
+//
+
+type NextHop struct {
+	AE      byte
+	Address []byte
+}
+
+func (nextHop *NextHop) ParseFrom(bytes []byte) {}
+func (nextHop *NextHop) Serialize() []byte      { return nil }
+func (nextHop *NextHop) Type() int              { return 0 }
+func (nextHop *NextHop) Length() int            { return 0 }
+func (nextHop *NextHop) Data() []byte           { return nil }
+
+//
+// Update message codec
+//
+
+type Update struct {
+	AE        byte
+	Flags     byte
+	PrefixLen byte
+	Omitted   byte
+	Interval  int16
+	Seqno     int16
+	Metric    int16
+	Prefix    []byte
+}
+
+func (update *Update) ParseFrom(bytes []byte) {}
+func (update *Update) Serialize() []byte      { return nil }
+func (update *Update) Type() int              { return 0 }
+func (update *Update) Length() int            { return 0 }
+func (update *Update) Data() []byte           { return nil }
+
+//
+// RouteRequest message codec
+//
+
+type RouteRequest struct {
+	AE        byte
+	PrefixLen byte
+	Prefix    []byte
+}
+
+func (routeRequest *RouteRequest) ParseFrom(bytes []byte) {}
+func (routeRequest *RouteRequest) Serialize() []byte      { return nil }
+func (routeRequest *RouteRequest) Type() int              { return 0 }
+func (routeRequest *RouteRequest) Length() int            { return 0 }
+func (routeRequest *RouteRequest) Data() []byte           { return nil }
+
+//
+// SeqNo message codec
+//
+
+type SeqnoRequest struct {
+	AE        byte
+	PrefixLen byte
+	Seqno     int16
+	HopCount  byte
+	RouterId  RouterId
+	Prefix    []byte
+}
+
+func (seqnoRequest *SeqnoRequest) ParseFrom(bytes []byte) {}
+func (seqnoRequest *SeqnoRequest) Serialize() []byte      { return nil }
+func (seqnoRequest *SeqnoRequest) Type() int              { return 0 }
+func (seqnoRequest *SeqnoRequest) Length() int            { return 0 }
+func (seqnoRequest *SeqnoRequest) Data() []byte           { return nil }
