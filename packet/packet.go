@@ -5,8 +5,17 @@ import (
 	"fmt"
 )
 
+//TODO: Convert byte array to struct codecs to use encoding/binary?
+
+// magic number for start of a babel packet
+
 var MAGIC = 42
+
+// version for start of a babel packet
+
 var VERSION = 2
+
+// TLV types
 
 const (
 	PAD1     = 0
@@ -171,17 +180,9 @@ func (ack *Ack) Serialize() []byte {
 	return bytes
 }
 
-func (ack *Ack) Type() int {
-	return ACK
-}
-
-func (ack *Ack) Length() int {
-	return 4
-}
-
-func (ack *Ack) Data() []byte {
-	return ack.Serialize()[2:]
-}
+func (ack *Ack) Type() int    { return ACK }
+func (ack *Ack) Length() int  { return 2 }
+func (ack *Ack) Data() []byte { return ack.Serialize()[2:] }
 
 //
 // HELLO message codec
@@ -192,27 +193,67 @@ type Hello struct {
 	Interval int16
 }
 
-func (hello *Hello) ParseFrom(bytes []byte) {}
-func (hello *Hello) Serialize() []byte      { return nil }
-func (hello *Hello) Type() int              { return 0 }
-func (hello *Hello) Length() int            { return 0 }
-func (hello *Hello) Data() []byte           { return nil }
+func (hello *Hello) ParseFrom(bytes []byte) {
+	hello.Seqno = int16(bytes[4])<<8 | int16(bytes[5])
+	hello.Interval = int16(bytes[6])<<8 | int16(bytes[7])
+}
+
+func (hello *Hello) Serialize() []byte {
+	var bytes = make([]byte, 8)
+	bytes[0] = byte(HELLO)
+	bytes[1] = 6
+	bytes[2] = 0
+	bytes[3] = 0
+	bytes[4] = byte(hello.Seqno >> 8)
+	bytes[5] = byte(hello.Seqno & 0x00ff)
+	bytes[6] = byte(hello.Interval >> 8)
+	bytes[7] = byte(hello.Interval & 0x00ff)
+	return bytes
+}
+
+func (hello *Hello) Type() int    { return HELLO }
+func (hello *Hello) Length() int  { return 6 }
+func (hello *Hello) Data() []byte { return hello.Serialize()[2:] }
 
 //
 // IHeardU message codec
 //
 
 type IHeardU struct {
-	AE      byte
-	RxCost  int16
-	Address []byte
+	AE       byte
+	RxCost   int16
+	Interval int16
+	Address  []byte
 }
 
-func (ihu *IHeardU) ParseFrom(bytes []byte) {}
-func (ihu *IHeardU) Serialize() []byte      { return nil }
-func (ihu *IHeardU) Type() int              { return 0 }
-func (ihu *IHeardU) Length() int            { return 0 }
-func (ihu *IHeardU) Data() []byte           { return nil }
+func (ihu *IHeardU) ParseFrom(bytes []byte) {
+	ihu.AE = bytes[2]
+	// bytes[3] is reserved
+	ihu.RxCost = int16(bytes[4])<<8 | int16(bytes[5])
+	ihu.Interval = int16(bytes[6])<<8 | int16(bytes[7])
+	ihu.Address = bytes[8:]
+}
+
+func (ihu *IHeardU) Serialize() []byte {
+	var bytes = make([]byte, 6+len(ihu.Address))
+
+	bytes[0] = byte(IHU)
+	bytes[1] = byte(6 + len(ihu.Address))
+	bytes[2] = ihu.AE
+	// bytes[3] is reserved
+	bytes[4] = byte(ihu.RxCost >> 8)
+	bytes[5] = byte(ihu.RxCost & 0x00ff)
+	bytes[6] = byte(ihu.Interval >> 8)
+	bytes[7] = byte(ihu.Interval & 0x00ff)
+
+	copy(bytes[8:], ihu.Address)
+
+	return bytes
+}
+
+func (ihu *IHeardU) Type() int    { return IHU }
+func (ihu *IHeardU) Length() int  { return 3 + len(ihu.Address) }
+func (ihu *IHeardU) Data() []byte { return ihu.Serialize()[2:] }
 
 //
 // Router-Id message codec
@@ -222,11 +263,37 @@ type RouterId struct {
 	RouterId int64
 }
 
-func (routerId *RouterId) ParseFrom(bytes []byte) {}
-func (routerId *RouterId) Serialize() []byte      { return nil }
-func (routerId *RouterId) Type() int              { return 0 }
-func (routerId *RouterId) Length() int            { return 0 }
-func (routerId *RouterId) Data() []byte           { return nil }
+func (routerId *RouterId) ParseFrom(bytes []byte) {
+	routerId.RouterId = int64(bytes[4])<<56 |
+		(int64(bytes[5]) << 48 & 0x00ff000000000000) |
+		(int64(bytes[6]) << 40 & 0x0000ff0000000000) |
+		(int64(bytes[7]) << 32 & 0x000000ff00000000) |
+		(int64(bytes[8]) << 24 & 0x00000000ff000000) |
+		(int64(bytes[9]) << 16 & 0x0000000000ff0000) |
+		(int64(bytes[10]) << 8 & 0x000000000000ff00) |
+		(int64(bytes[11]) & 0x00000000000000ff)
+}
+
+func (routerId *RouterId) Serialize() []byte {
+	var bytes = make([]byte, 10)
+	bytes[0] = byte(ROUTERID)
+	bytes[1] = 8
+	bytes[2] = 0
+	bytes[3] = 0
+	bytes[4] = byte(routerId.RouterId >> 56)
+	bytes[5] = byte(routerId.RouterId >> 48 & 255)
+	bytes[6] = byte(routerId.RouterId >> 40 & 255)
+	bytes[7] = byte(routerId.RouterId >> 32 & 255)
+	bytes[8] = byte(routerId.RouterId >> 24 & 255)
+	bytes[9] = byte(routerId.RouterId >> 16 & 255)
+	bytes[10] = byte(routerId.RouterId >> 8 & 255)
+	bytes[11] = byte(routerId.RouterId & 255)
+	return bytes
+}
+
+func (routerId *RouterId) Type() int    { return ROUTERID }
+func (routerId *RouterId) Length() int  { return 8 }
+func (routerId *RouterId) Data() []byte { return routerId.Serialize()[2:] }
 
 //
 // NextHop message codec
@@ -237,11 +304,27 @@ type NextHop struct {
 	Address []byte
 }
 
-func (nextHop *NextHop) ParseFrom(bytes []byte) {}
-func (nextHop *NextHop) Serialize() []byte      { return nil }
-func (nextHop *NextHop) Type() int              { return 0 }
-func (nextHop *NextHop) Length() int            { return 0 }
-func (nextHop *NextHop) Data() []byte           { return nil }
+func (nextHop *NextHop) ParseFrom(bytes []byte) {
+	nextHop.AE = bytes[2]
+	// bytes[3] is reserved
+	nextHop.Address = bytes[4:]
+}
+
+func (nextHop *NextHop) Serialize() []byte {
+	var bytes = make([]byte, 4+len(nextHop.Address))
+
+	bytes[0] = byte(NEXTHOP)
+	bytes[1] = byte(2 + len(nextHop.Address))
+	bytes[2] = nextHop.AE
+	bytes[3] = 0
+	copy(bytes[4:], nextHop.Address)
+
+	return bytes
+}
+
+func (nextHop *NextHop) Type() int    { return NEXTHOP }
+func (nextHop *NextHop) Length() int  { return 2 + len(nextHop.Address) }
+func (nextHop *NextHop) Data() []byte { return nextHop.Serialize()[2:] }
 
 //
 // Update message codec
@@ -258,11 +341,40 @@ type Update struct {
 	Prefix    []byte
 }
 
-func (update *Update) ParseFrom(bytes []byte) {}
-func (update *Update) Serialize() []byte      { return nil }
-func (update *Update) Type() int              { return 0 }
-func (update *Update) Length() int            { return 0 }
-func (update *Update) Data() []byte           { return nil }
+func (update *Update) ParseFrom(bytes []byte) {
+	update.AE = bytes[2]
+	update.Flags = bytes[3]
+	update.PrefixLen = bytes[4]
+	update.Omitted = bytes[5]
+	update.Interval = int16(bytes[6])<<8 | int16(bytes[7])
+	update.Seqno = int16(bytes[8])<<8 | int16(bytes[9])
+	update.Metric = int16(bytes[10])<<8 | int16(bytes[11])
+	update.Prefix = bytes[12:]
+}
+
+func (update *Update) Serialize() []byte {
+	var bytes = make([]byte, 12+len(update.Prefix))
+
+	bytes[0] = byte(UPDATE)
+	bytes[1] = byte(10 + len(update.Prefix))
+	bytes[2] = update.AE
+	bytes[3] = update.Flags
+	bytes[4] = update.PrefixLen
+	bytes[5] = update.Omitted
+	bytes[6] = byte(update.Interval >> 8)
+	bytes[7] = byte(update.Interval & 0x00ff)
+	bytes[8] = byte(update.Seqno >> 8)
+	bytes[9] = byte(update.Seqno & 0x00ff)
+	bytes[10] = byte(update.Metric >> 8)
+	bytes[11] = byte(update.Metric & 0x00ff)
+	copy(bytes[12:], update.Prefix)
+
+	return bytes
+}
+
+func (update *Update) Type() int    { return UPDATE }
+func (update *Update) Length() int  { return 10 + len(update.Prefix) }
+func (update *Update) Data() []byte { return update.Serialize()[2:] }
 
 //
 // RouteRequest message codec
@@ -274,11 +386,20 @@ type RouteRequest struct {
 	Prefix    []byte
 }
 
-func (routeRequest *RouteRequest) ParseFrom(bytes []byte) {}
-func (routeRequest *RouteRequest) Serialize() []byte      { return nil }
-func (routeRequest *RouteRequest) Type() int              { return 0 }
-func (routeRequest *RouteRequest) Length() int            { return 0 }
-func (routeRequest *RouteRequest) Data() []byte           { return nil }
+func (routeRequest *RouteRequest) ParseFrom(bytes []byte) {
+	routeRequest.AE = bytes[2]
+	routeRequest.PrefixLen = bytes[3]
+	routeRequest.Prefix = bytes[4:]
+}
+
+func (routeRequest *RouteRequest) Serialize() []byte {
+	var bytes = make([]byte, 4+len(routeRequest.Prefix))
+	return bytes
+}
+
+func (routeRequest *RouteRequest) Type() int    { return ROUTEREQ }
+func (routeRequest *RouteRequest) Length() int  { return 2 + len(routeRequest.Prefix) }
+func (routeRequest *RouteRequest) Data() []byte { return routeRequest.Serialize()[2:] }
 
 //
 // SeqNo message codec
@@ -295,6 +416,6 @@ type SeqnoRequest struct {
 
 func (seqnoRequest *SeqnoRequest) ParseFrom(bytes []byte) {}
 func (seqnoRequest *SeqnoRequest) Serialize() []byte      { return nil }
-func (seqnoRequest *SeqnoRequest) Type() int              { return 0 }
+func (seqnoRequest *SeqnoRequest) Type() int              { return SEQNOREQ }
 func (seqnoRequest *SeqnoRequest) Length() int            { return 0 }
-func (seqnoRequest *SeqnoRequest) Data() []byte           { return nil }
+func (seqnoRequest *SeqnoRequest) Data() []byte           { return seqnoRequest.Serialize()[2:] }
