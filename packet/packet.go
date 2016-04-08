@@ -133,10 +133,10 @@ func (ackReq *AckReq) ParseFrom(bytes []byte) {
 }
 
 func (ackReq *AckReq) Serialize() []byte {
-	var bytes = make([]byte, 8)
+	var bytes = make([]byte, ackReq.Length()+2)
 
-	bytes[0] = byte(ACKREQ)
-	bytes[1] = byte(6)
+	bytes[0] = byte(ackReq.Type())
+	bytes[1] = byte(ackReq.Length())
 	bytes[2] = 0
 	bytes[3] = 0
 	bytes[4] = byte(ackReq.Nonce >> 8)
@@ -147,17 +147,9 @@ func (ackReq *AckReq) Serialize() []byte {
 	return bytes
 }
 
-func (ackReq *AckReq) Type() int {
-	return ACKREQ
-}
-
-func (ackReq *AckReq) Length() int {
-	return 6
-}
-
-func (ackReq *AckReq) Data() []byte {
-	return ackReq.Serialize()[2:]
-}
+func (ackReq *AckReq) Type() int    { return ACKREQ }
+func (ackReq *AckReq) Length() int  { return 6 }
+func (ackReq *AckReq) Data() []byte { return ackReq.Serialize()[2:] }
 
 //
 // ACK message codec
@@ -172,9 +164,9 @@ func (ack *Ack) ParseFrom(bytes []byte) {
 }
 
 func (ack *Ack) Serialize() []byte {
-	var bytes = make([]byte, 4)
-	bytes[0] = byte(ACK)
-	bytes[1] = 2
+	var bytes = make([]byte, ack.Length()+2)
+	bytes[0] = byte(ack.Type())
+	bytes[1] = byte(ack.Length())
 	bytes[2] = byte(ack.Nonce >> 8)
 	bytes[3] = byte(ack.Nonce & 0x00ff)
 	return bytes
@@ -199,9 +191,9 @@ func (hello *Hello) ParseFrom(bytes []byte) {
 }
 
 func (hello *Hello) Serialize() []byte {
-	var bytes = make([]byte, 8)
-	bytes[0] = byte(HELLO)
-	bytes[1] = 6
+	var bytes = make([]byte, hello.Length()+2)
+	bytes[0] = byte(hello.Type())
+	bytes[1] = byte(hello.Length())
 	bytes[2] = 0
 	bytes[3] = 0
 	bytes[4] = byte(hello.Seqno >> 8)
@@ -235,10 +227,10 @@ func (ihu *IHeardU) ParseFrom(bytes []byte) {
 }
 
 func (ihu *IHeardU) Serialize() []byte {
-	var bytes = make([]byte, 6+len(ihu.Address))
+	var bytes = make([]byte, ihu.Length()+2)
 
-	bytes[0] = byte(IHU)
-	bytes[1] = byte(6 + len(ihu.Address))
+	bytes[0] = byte(ihu.Type())
+	bytes[1] = byte(ihu.Length())
 	bytes[2] = ihu.AE
 	// bytes[3] is reserved
 	bytes[4] = byte(ihu.RxCost >> 8)
@@ -275,9 +267,9 @@ func (routerId *RouterId) ParseFrom(bytes []byte) {
 }
 
 func (routerId *RouterId) Serialize() []byte {
-	var bytes = make([]byte, 10)
-	bytes[0] = byte(ROUTERID)
-	bytes[1] = 8
+	var bytes = make([]byte, routerId.Length()+2)
+	bytes[0] = byte(routerId.Type())
+	bytes[1] = byte(routerId.Length())
 	bytes[2] = 0
 	bytes[3] = 0
 	bytes[4] = byte(routerId.RouterId >> 56)
@@ -297,6 +289,7 @@ func (routerId *RouterId) Data() []byte { return routerId.Serialize()[2:] }
 
 //
 // NextHop message codec
+// TODO: verify functionality
 //
 
 type NextHop struct {
@@ -311,10 +304,10 @@ func (nextHop *NextHop) ParseFrom(bytes []byte) {
 }
 
 func (nextHop *NextHop) Serialize() []byte {
-	var bytes = make([]byte, 4+len(nextHop.Address))
+	var bytes = make([]byte, nextHop.Length()+2)
 
-	bytes[0] = byte(NEXTHOP)
-	bytes[1] = byte(2 + len(nextHop.Address))
+	bytes[0] = byte(nextHop.Type())
+	bytes[1] = byte(nextHop.Length())
 	bytes[2] = nextHop.AE
 	bytes[3] = 0
 	copy(bytes[4:], nextHop.Address)
@@ -349,14 +342,15 @@ func (update *Update) ParseFrom(bytes []byte) {
 	update.Interval = int16(bytes[6])<<8 | int16(bytes[7])
 	update.Seqno = int16(bytes[8])<<8 | int16(bytes[9])
 	update.Metric = int16(bytes[10])<<8 | int16(bytes[11])
-	update.Prefix = bytes[12:]
+	update.Prefix = make([]byte, update.PrefixLen)
+	copy(update.Prefix, bytes[12:])
 }
 
 func (update *Update) Serialize() []byte {
-	var bytes = make([]byte, 12+len(update.Prefix))
+	var bytes = make([]byte, update.Length()+2)
 
-	bytes[0] = byte(UPDATE)
-	bytes[1] = byte(10 + len(update.Prefix))
+	bytes[0] = byte(update.Type())
+	bytes[1] = byte(update.Length())
 	bytes[2] = update.AE
 	bytes[3] = update.Flags
 	bytes[4] = update.PrefixLen
@@ -389,11 +383,19 @@ type RouteRequest struct {
 func (routeRequest *RouteRequest) ParseFrom(bytes []byte) {
 	routeRequest.AE = bytes[2]
 	routeRequest.PrefixLen = bytes[3]
-	routeRequest.Prefix = bytes[4:]
+	routeRequest.Prefix = make([]byte, routeRequest.PrefixLen)
+	copy(routeRequest.Prefix, bytes[4:])
 }
 
 func (routeRequest *RouteRequest) Serialize() []byte {
-	var bytes = make([]byte, 4+len(routeRequest.Prefix))
+	var bytes = make([]byte, routeRequest.Length()+2)
+
+	bytes[0] = byte(routeRequest.Type())
+	bytes[1] = byte(routeRequest.Length())
+	bytes[2] = routeRequest.AE
+	bytes[3] = routeRequest.PrefixLen
+	copy(bytes[4:], routeRequest.Prefix)
+
 	return bytes
 }
 
@@ -410,12 +412,32 @@ type SeqnoRequest struct {
 	PrefixLen byte
 	Seqno     int16
 	HopCount  byte
-	RouterId  RouterId
+	RouterId  int64
 	Prefix    []byte
 }
 
-func (seqnoRequest *SeqnoRequest) ParseFrom(bytes []byte) {}
-func (seqnoRequest *SeqnoRequest) Serialize() []byte      { return nil }
-func (seqnoRequest *SeqnoRequest) Type() int              { return SEQNOREQ }
-func (seqnoRequest *SeqnoRequest) Length() int            { return 0 }
-func (seqnoRequest *SeqnoRequest) Data() []byte           { return seqnoRequest.Serialize()[2:] }
+func (seqnoRequest *SeqnoRequest) ParseFrom(bytes []byte) {
+	seqnoRequest.AE = bytes[3]
+	seqnoRequest.PrefixLen = bytes[4]
+	seqnoRequest.Seqno = int16(bytes[5])<<8 | int16(bytes[6])&0x00ff
+	seqnoRequest.HopCount = bytes[7]
+	seqnoRequest.RouterId = int64(bytes[8])<<56 |
+		(int64(bytes[9]) << 48 & 0x00ff000000000000) |
+		(int64(bytes[10]) << 40 & 0x0000ff0000000000) |
+		(int64(bytes[11]) << 32 & 0x000000ff00000000) |
+		(int64(bytes[12]) << 24 & 0x00000000ff000000) |
+		(int64(bytes[13]) << 16 & 0x0000000000ff0000) |
+		(int64(bytes[14]) << 8 & 0x000000000000ff00) |
+		(int64(bytes[15]) & 0x00000000000000ff)
+	seqnoRequest.Prefix = make([]byte, seqnoRequest.PrefixLen)
+	copy(seqnoRequest.Prefix, bytes[16:])
+}
+
+func (seqnoRequest *SeqnoRequest) Serialize() []byte {
+	var bytes = make([]byte, seqnoRequest.Length()+2)
+	return bytes
+}
+
+func (seqnoRequest *SeqnoRequest) Type() int    { return SEQNOREQ }
+func (seqnoRequest *SeqnoRequest) Length() int  { return 7 + len(seqnoRequest.Prefix) }
+func (seqnoRequest *SeqnoRequest) Data() []byte { return seqnoRequest.Serialize()[2:] }
