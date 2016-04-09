@@ -1,6 +1,6 @@
 package core
 
-import "git.soma.salesforce.com/skendall/gabel/packet"
+import "github.com/sh3rp/gabel/packet"
 
 type Neighbor struct {
 	Interface        *Interface

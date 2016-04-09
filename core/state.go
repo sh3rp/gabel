@@ -1,5 +1,11 @@
 package core
 
+import (
+	"log"
+
+	"github.com/sh3rp/gabel/packet"
+)
+
 type State struct {
 	NodeSeqno  int64
 	Interfaces []*Interface
@@ -16,10 +22,14 @@ func NewState() *State {
 		Neighbors:  make([]*Neighbor, 1),
 		Sources:    make(map[int]*SourceInfo),
 		Routes:     make(map[int]*Route),
-		Pending:    make([]*Request),
+		Pending:    make([]*Request, 1),
 	}
 }
 
 func (state *State) NewInterface(ifLabel string) {
 
+}
+
+func (state *State) Received(packet *packet.BabelPacket) {
+	log.Println("[PACKET] ", packet)
 }

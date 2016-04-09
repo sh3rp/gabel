@@ -1,24 +1,26 @@
 package core
 
+import "github.com/sh3rp/gabel/packet"
+
 type Transport interface {
-	Send(*Packet)
-	AddListener(*PacketListener)
+	Send(*packet.BabelPacket)
+	AddListener(*BabelPacketListener)
 }
 
-type PacketListener interface {
-	Received(*Packet)
+type BabelPacketListener interface {
+	Received(*packet.BabelPacket)
 }
 
 type Loopback struct {
-	listeners []*PacketListener
+	listeners []BabelPacketListener
 }
 
-func (loopback *Loopback) Send(packet *Packet) {
-	for _, lo := range loopback.Listeners {
+func (loopback *Loopback) Send(packet *packet.BabelPacket) {
+	for _, lo := range loopback.listeners {
 		lo.Received(packet)
 	}
 }
 
-func (loopback *Loopback) AddListener(listener *PacketListener) {
-	loopback.listeners = append(lookback.Listeners, listener)
+func (loopback *Loopback) AddListener(listener BabelPacketListener) {
+	loopback.listeners = append(loopback.listeners, listener)
 }

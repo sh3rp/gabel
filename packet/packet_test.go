@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"git.soma.salesforce.com/skendall/gabel/packet"
+	"github.com/skendall/gabel/packet"
 )
 
 func TestAckReq(t *testing.T) {

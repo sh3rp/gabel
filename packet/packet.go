@@ -37,8 +37,8 @@ type BabelPacket struct {
 	TLVs    []TLV
 }
 
-func NewBabelPacket() *BabelPacket {
-	return &BabelPacket{Magic: 42, Version: 2, TLVs: make([]TLV, 1)}
+func NewBabelPacket(tlvs []TLV) *BabelPacket {
+	return &BabelPacket{Magic: 42, Version: 2, TLVs: tlvs}
 }
 
 func (babel *BabelPacket) AddTLV(tlv TLV) {
