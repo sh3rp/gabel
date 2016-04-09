@@ -31,5 +31,5 @@ func (state *State) NewInterface(ifLabel string) {
 }
 
 func (state *State) Received(packet *packet.BabelPacket) {
-	log.Println("[PACKET] ", packet)
+	log.Println("[PACKET]", packet)
 }

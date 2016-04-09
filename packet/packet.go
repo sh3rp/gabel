@@ -37,16 +37,17 @@ type BabelPacket struct {
 	TLVs    []TLV
 }
 
-func NewBabelPacket(tlvs []TLV) *BabelPacket {
+func NewBabelPacketWithTLV(tlvs []TLV) *BabelPacket {
 	return &BabelPacket{Magic: 42, Version: 2, TLVs: tlvs}
 }
 
-func (babel *BabelPacket) AddTLV(tlv TLV) {
-	if babel.TLVs[0] == nil {
-		babel.TLVs[0] = tlv
-	} else {
-		babel.TLVs = append(babel.TLVs, tlv)
-	}
+func NewBabelPacket() *BabelPacket {
+	return &BabelPacket{Magic: 42, Version: 2, TLVs: nil}
+}
+
+func (babel *BabelPacket) AddTLV(tlv TLV) *BabelPacket {
+	babel.TLVs = append(babel.TLVs, tlv)
+	return babel
 }
 
 //

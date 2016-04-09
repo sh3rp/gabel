@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 
@@ -38,19 +39,22 @@ func (intf *Interface) Start() {
 		for intf.queuePackets {
 			intf.queueLock.Lock()
 			if len(intf.pendingTLVs) > 0 {
-				var pending []packet.TLV
+				p := packet.NewBabelPacket()
 				for t := range intf.pendingTLVs {
-					pending = append(pending, t)
+					p.AddTLV(t)
 				}
-				p := packet.NewBabelPacket(pending)
 				intf.transport.Send(p)
 			}
 			intf.queueLock.Unlock()
-			time.Sleep(100)
+			time.Sleep(intf.jitter())
 		}
 	}()
 }
 
 func (intf *Interface) Stop() {
 	intf.queuePackets = false
+}
+
+func (intf *Interface) jitter() time.Duration {
+	return time.Duration(rand.Intn(1000))
 }
