@@ -2,20 +2,6 @@ package core
 
 import "git.soma.salesforce.com/skendall/gabel/packet"
 
-type State struct {
-	NodeSeqno  int64
-	Interfaces []*Interface
-	Neighbors  []*Neighbor
-	Sources    map[int]*SourceInfo
-	Routes     map[int]*Route
-	Pending    []*Request
-}
-
-type Interface struct {
-	Label      string
-	HelloSeqNo int16
-}
-
 type Neighbor struct {
 	Interface        *Interface
 	Address          []byte
