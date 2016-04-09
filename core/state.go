@@ -30,6 +30,16 @@ func (state *State) NewInterface(ifLabel string) {
 
 }
 
-func (state *State) Received(packet *packet.BabelPacket) {
-	log.Println("[PACKET]", packet)
+func (state *State) Received(p *packet.BabelPacket) {
+	log.Println("[PACKET]")
+	for _, t := range p.TLVs {
+		switch tlv := t.(type) {
+		case packet.Hello:
+			log.Println("  HELLO", tlv.Seqno, tlv.Interval)
+		case packet.TLV:
+			log.Println("  TLV", tlv.Type())
+		default:
+			log.Println("TYPE", tlv)
+		}
+	}
 }

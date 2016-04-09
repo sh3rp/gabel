@@ -34,18 +34,14 @@ const (
 type BabelPacket struct {
 	Magic   byte
 	Version byte
-	TLVs    []TLV
-}
-
-func NewBabelPacketWithTLV(tlvs []TLV) *BabelPacket {
-	return &BabelPacket{Magic: 42, Version: 2, TLVs: tlvs}
+	TLVs    []interface{}
 }
 
 func NewBabelPacket() *BabelPacket {
 	return &BabelPacket{Magic: 42, Version: 2, TLVs: nil}
 }
 
-func (babel *BabelPacket) AddTLV(tlv TLV) *BabelPacket {
+func (babel *BabelPacket) AddTLV(tlv interface{}) *BabelPacket {
 	babel.TLVs = append(babel.TLVs, tlv)
 	return babel
 }
@@ -54,8 +50,8 @@ func (babel *BabelPacket) AddTLV(tlv TLV) *BabelPacket {
 // Parse and generate an array of TLV's from a Babel packet
 //
 
-func ParseBabelPacket(bytes []byte) ([]TLV, error) {
-	var tlvs []TLV
+func ParseBabelPacket(bytes []byte) ([]interface{}, error) {
+	var tlvs []interface{}
 
 	if bytes[0] != 42 {
 		return nil, errors.New(fmt.Sprintf("Malformed packet, magic number incorrect (%d)", bytes[0]))
@@ -71,7 +67,7 @@ func ParseBabelPacket(bytes []byte) ([]TLV, error) {
 
 	for currentTLVIdx <= endIdx {
 		tlvLen := int(bytes[currentTLVIdx+1])<<8 | int(bytes[currentTLVIdx+2])
-		var tlv TLV
+		var tlv interface{}
 		switch bytes[currentTLVIdx] {
 		case ACKREQ:
 			ackReq := new(AckReq)
