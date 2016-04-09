@@ -1,5 +1,5 @@
 package packet
 
 type Transport interface {
-	Send([]byte) error
+	Send(packet *BabelPacket) error
 }

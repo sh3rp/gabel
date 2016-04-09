@@ -31,16 +31,22 @@ const (
 	SEQNOREQ = 10
 )
 
-//
-// Represents the function contracts for TLV packets
-//
+type BabelPacket struct {
+	Magic   byte
+	Version byte
+	TLVs    []TLV
+}
 
-type TLV interface {
-	Type() int
-	Length() int
-	Data() []byte
-	ParseFrom([]byte)
-	Serialize() []byte
+func NewBabelPacket() *BabelPacket {
+	return &BabelPacket{Magic: 42, Version: 2, TLVs: make([]TLV, 1)}
+}
+
+func (babel *BabelPacket) AddTLV(tlv TLV) {
+	if babel.TLVs[0] == nil {
+		babel.TLVs[0] = tlv
+	} else {
+		babel.TLVs = append(babel.TLVs, tlv)
+	}
 }
 
 //
@@ -116,6 +122,18 @@ func SerializeBabelPacket(tlvlist []TLV) ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+//
+// Represents the function contracts for TLV packets
+//
+
+type TLV interface {
+	Type() int
+	Length() int
+	Data() []byte
+	ParseFrom([]byte)
+	Serialize() []byte
 }
 
 //
@@ -342,8 +360,7 @@ func (update *Update) ParseFrom(bytes []byte) {
 	update.Interval = int16(bytes[6])<<8 | int16(bytes[7])
 	update.Seqno = int16(bytes[8])<<8 | int16(bytes[9])
 	update.Metric = int16(bytes[10])<<8 | int16(bytes[11])
-	update.Prefix = make([]byte, update.PrefixLen)
-	copy(update.Prefix, bytes[12:])
+	update.Prefix = bytes[12:]
 }
 
 func (update *Update) Serialize() []byte {
@@ -383,8 +400,7 @@ type RouteRequest struct {
 func (routeRequest *RouteRequest) ParseFrom(bytes []byte) {
 	routeRequest.AE = bytes[2]
 	routeRequest.PrefixLen = bytes[3]
-	routeRequest.Prefix = make([]byte, routeRequest.PrefixLen)
-	copy(routeRequest.Prefix, bytes[4:])
+	routeRequest.Prefix = bytes[4:]
 }
 
 func (routeRequest *RouteRequest) Serialize() []byte {
@@ -429,8 +445,7 @@ func (seqnoRequest *SeqnoRequest) ParseFrom(bytes []byte) {
 		(int64(bytes[13]) << 16 & 0x0000000000ff0000) |
 		(int64(bytes[14]) << 8 & 0x000000000000ff00) |
 		(int64(bytes[15]) & 0x00000000000000ff)
-	seqnoRequest.Prefix = make([]byte, seqnoRequest.PrefixLen)
-	copy(seqnoRequest.Prefix, bytes[16:])
+	seqnoRequest.Prefix = bytes[16:]
 }
 
 func (seqnoRequest *SeqnoRequest) Serialize() []byte {
