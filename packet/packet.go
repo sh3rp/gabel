@@ -3,7 +3,6 @@ package packet
 import (
 	"errors"
 	"fmt"
-	"log"
 )
 
 //TODO: Convert byte array to struct codecs to use encoding/binary?
@@ -68,28 +67,24 @@ func (babel *BabelPacket) ParseFrom(bytes []byte) error {
 		var tlv interface{}
 		switch bytes[currentTLVIdx] {
 		case ACKREQ:
-			log.Println("Parsing ACKREQ")
 			ackReq := new(AckReq)
 			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
 			ackReq.ParseFrom(b)
 			tlv = ackReq
 
 		case ACK:
-			log.Println("Parsing ACK")
 			ack := new(Ack)
 			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
 			ack.ParseFrom(b)
 			tlv = ack
 
 		case HELLO:
-			log.Println("Parsing HELLO")
 			hello := new(Hello)
 			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
 			hello.ParseFrom(b)
 			tlv = hello
 
 		case ROUTERID:
-			log.Println("Parsing ROUTERID")
 			routerId := new(RouterId)
 			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
 			routerId.ParseFrom(b)
@@ -126,8 +121,6 @@ func (packet *BabelPacket) Serialize() []byte {
 	bytes[1] = byte(VERSION)
 	bytes[2] = byte(totalLen >> 8)
 	bytes[3] = byte(totalLen & 0x00ff)
-
-	log.Println("Serialize total length of", totalLen)
 
 	currentIdx := 4
 
