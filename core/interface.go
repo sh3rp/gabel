@@ -16,6 +16,7 @@ type Interface struct {
 	pendingTLVs  []interface{}
 	queueLock    *sync.Mutex
 	queuePackets bool
+	TLVChannel   chan interface{}
 }
 
 func NewInterface(label string, transport Transport) *Interface {
@@ -25,6 +26,7 @@ func NewInterface(label string, transport Transport) *Interface {
 		transport:    transport,
 		queueLock:    &sync.Mutex{},
 		queuePackets: true,
+		TLVChannel:   make(chan interface{}, 100),
 	}
 }
 
@@ -48,6 +50,7 @@ func (intf *Interface) Received(bytes []byte) {
 		default:
 			log.Println("  UNKNOWN TYPE", tlv)
 		}
+		TLVChannel <- t
 	}
 }
 
