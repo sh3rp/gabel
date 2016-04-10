@@ -50,7 +50,7 @@ func (intf *Interface) Received(bytes []byte) {
 		default:
 			log.Println("  UNKNOWN TYPE", tlv)
 		}
-		TLVChannel <- t
+		intf.TLVChannel <- t
 	}
 }
 
