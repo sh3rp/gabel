@@ -2,7 +2,7 @@ package core
 
 type Transport interface {
 	Send([]byte)
-	AddListener(*BabelPacketListener)
+	AddListener(BabelPacketListener)
 }
 
 type BabelPacketListener interface {
