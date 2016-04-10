@@ -3,6 +3,7 @@ package packet
 import (
 	"errors"
 	"fmt"
+	"log"
 )
 
 //TODO: Convert byte array to struct codecs to use encoding/binary?
@@ -50,75 +51,95 @@ func (babel *BabelPacket) AddTLV(tlv interface{}) *BabelPacket {
 // Parse and generate an array of TLV's from a Babel packet
 //
 
-func ParseBabelPacket(bytes []byte) ([]interface{}, error) {
-	var tlvs []interface{}
+func (babel *BabelPacket) ParseFrom(bytes []byte) error {
 
 	if bytes[0] != 42 {
-		return nil, errors.New(fmt.Sprintf("Malformed packet, magic number incorrect (%d)", bytes[0]))
+		return errors.New(fmt.Sprintf("Malformed packet, magic number incorrect (%d)", bytes[0]))
 	}
 
 	if bytes[1] != 2 {
-		return nil, errors.New(fmt.Sprintf("Packet version unknown (got %d, expected 2)", bytes[1]))
+		return errors.New(fmt.Sprintf("Packet version unknown (got %d, expected 2)", bytes[1]))
 	}
 
-	len := int(bytes[2])<<8 | int(bytes[3])
-	endIdx := 4 + len
-	currentTLVIdx := 5
+	currentTLVIdx := 4
 
-	for currentTLVIdx <= endIdx {
-		tlvLen := int(bytes[currentTLVIdx+1])<<8 | int(bytes[currentTLVIdx+2])
+	for currentTLVIdx < len(bytes) {
+		tlvLen := int(bytes[currentTLVIdx+1])
 		var tlv interface{}
 		switch bytes[currentTLVIdx] {
 		case ACKREQ:
+			log.Println("Parsing ACKREQ")
 			ackReq := new(AckReq)
-			ackReq.ParseFrom(bytes[currentTLVIdx : tlvLen+3])
+			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
+			ackReq.ParseFrom(b)
 			tlv = ackReq
 
 		case ACK:
+			log.Println("Parsing ACK")
 			ack := new(Ack)
-			ack.ParseFrom(bytes[currentTLVIdx : tlvLen+3])
+			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
+			ack.ParseFrom(b)
 			tlv = ack
+
+		case HELLO:
+			log.Println("Parsing HELLO")
+			hello := new(Hello)
+			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
+			hello.ParseFrom(b)
+			tlv = hello
+
+		case ROUTERID:
+			log.Println("Parsing ROUTERID")
+			routerId := new(RouterId)
+			b := bytes[currentTLVIdx:(currentTLVIdx + tlvLen + 2)]
+			routerId.ParseFrom(b)
+			tlv = routerId
 
 		default:
 		}
-		tlvs = append(tlvs, tlv)
+		babel.TLVs = append(babel.TLVs, tlv)
 		currentTLVIdx = currentTLVIdx + 2 + tlvLen
 	}
 
-	return tlvs, nil
+	return nil
 }
 
 //
 // Generate a serialized Babel packet from an array of tlvs
 //
 
-func SerializeBabelPacket(tlvlist []TLV) ([]byte, error) {
+func (packet *BabelPacket) Serialize() []byte {
 	var bytes []byte
 
-	totalLen := 0
+	totalLen := 4
 
-	if tlvlist != nil {
-		for _, tlv := range tlvlist {
-			totalLen = totalLen + tlv.Length() + 2
+	if packet.TLVs != nil {
+		for _, tlv := range packet.TLVs {
+			t := tlv.(TLV)
+			totalLen = totalLen + t.Length() + 2
 		}
 	}
 
-	bytes = make([]byte, 4+totalLen)
+	bytes = make([]byte, totalLen)
 
 	bytes[0] = byte(MAGIC)
 	bytes[1] = byte(VERSION)
 	bytes[2] = byte(totalLen >> 8)
 	bytes[3] = byte(totalLen & 0x00ff)
 
+	log.Println("Serialize total length of", totalLen)
+
 	currentIdx := 4
 
-	for _, tlv := range tlvlist {
-		bytes[currentIdx] = byte(tlv.Type())
-		bytes[currentIdx+1] = byte(tlv.Length())
-		copy(bytes[currentIdx+1:tlv.Length()], tlv.Data())
+	for _, tlv := range packet.TLVs {
+		t := tlv.(TLV)
+		bytes[currentIdx] = byte(t.Type())
+		bytes[currentIdx+1] = byte(t.Length())
+		copy(bytes[currentIdx+2:currentIdx+2+t.Length()], t.Data())
+		currentIdx = currentIdx + t.Length() + 2
 	}
 
-	return bytes, nil
+	return bytes
 }
 
 //
@@ -299,7 +320,7 @@ func (routerId *RouterId) Serialize() []byte {
 }
 
 func (routerId *RouterId) Type() int    { return ROUTERID }
-func (routerId *RouterId) Length() int  { return 8 }
+func (routerId *RouterId) Length() int  { return 10 }
 func (routerId *RouterId) Data() []byte { return routerId.Serialize()[2:] }
 
 //

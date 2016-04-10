@@ -14,8 +14,19 @@ func main() {
 	t1.AddListener(t1state)
 	t2.AddListener(t2state)
 
-	packet := packet.NewBabelPacket().AddTLV(new(packet.Hello)).AddTLV(new(packet.AckReq)).AddTLV(new(packet.RouterId))
+	hello := new(packet.Hello)
+	hello.Interval = 15
+	hello.Seqno = 31
 
-	t1.Send(packet)
+	ackreq := new(packet.AckReq)
+	ackreq.Nonce = 832
+	ackreq.Interval = 10
+
+	routerId := new(packet.RouterId)
+	routerId.RouterId = 2147483647
+
+	packet := packet.NewBabelPacket().AddTLV(hello).AddTLV(ackreq).AddTLV(routerId)
+
+	t1.Send(packet.Serialize())
 
 }

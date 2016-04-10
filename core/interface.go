@@ -43,7 +43,7 @@ func (intf *Interface) Start() {
 				for t := range intf.pendingTLVs {
 					p.AddTLV(t)
 				}
-				intf.transport.Send(p)
+				intf.transport.Send(p.Serialize())
 			}
 			intf.queueLock.Unlock()
 			time.Sleep(intf.jitter())

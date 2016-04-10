@@ -30,7 +30,14 @@ func (state *State) NewInterface(ifLabel string) {
 
 }
 
-func (state *State) Received(p *packet.BabelPacket) {
+func (state *State) Received(bytes []byte) {
+	p := packet.BabelPacket{}
+	err := p.ParseFrom(bytes)
+
+	if err != nil {
+		log.Println("ERROR: %v")
+	}
+
 	log.Println("[PACKET]")
 	for _, t := range p.TLVs {
 		switch tlv := t.(type) {
