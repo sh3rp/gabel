@@ -12,22 +12,23 @@ type Interface struct {
 	Label        string
 	HelloSeqNo   int16
 	transport    Transport
-	pendingTLVs  chan packet.TLV
+	pendingTLVs  chan interface{}
 	queueLock    *sync.Mutex
 	queuePackets bool
 }
 
-func NewInterface(label string, transport *Transport) *Interface {
+func NewInterface(label string, transport Transport) *Interface {
 	return &Interface{
 		Label:        label,
 		HelloSeqNo:   0,
-		pendingTLVs:  make(chan packet.TLV, 10),
+		transport:    transport,
+		pendingTLVs:  make(chan interface{}, 10),
 		queueLock:    &sync.Mutex{},
 		queuePackets: true,
 	}
 }
 
-func (intf *Interface) Send(tlv packet.TLV) error {
+func (intf *Interface) Send(tlv interface{}) error {
 	intf.queueLock.Lock()
 	intf.pendingTLVs <- tlv
 	intf.queueLock.Unlock()

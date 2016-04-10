@@ -38,15 +38,17 @@ func (state *State) Received(bytes []byte) {
 		log.Println("ERROR: %v")
 	}
 
-	log.Println("[PACKET]")
+	log.Println("[PACKET RECV]")
 	for _, t := range p.TLVs {
 		switch tlv := t.(type) {
-		case packet.Hello:
-			log.Println("  HELLO", tlv.Seqno, tlv.Interval)
-		case packet.TLV:
-			log.Println("  TLV", tlv.Type())
+		case *packet.Hello:
+			log.Printf("  HELLO: Sequence: %d, Interval: %d", tlv.Seqno, tlv.Interval)
+		case *packet.AckReq:
+			log.Printf("  ACK-REQUEST: Nonce: %d, Interval: %d", tlv.Nonce, tlv.Interval)
+		case *packet.RouterId:
+			log.Printf("  Router-ID: %d", tlv.RouterId)
 		default:
-			log.Println("TYPE", tlv)
+			log.Println("  UNKNOWN TYPE", tlv)
 		}
 	}
 }
